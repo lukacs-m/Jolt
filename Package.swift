@@ -5,6 +5,10 @@ import PackageDescription
 
 let package = Package(
     name: "Jolt",
+    platforms: [
+        .iOS(.v14),
+        .watchOS(.v7)
+    ],
     products: [
         // Products define the executables and libraries a package produces, and make them visible to other packages.
         .library(
