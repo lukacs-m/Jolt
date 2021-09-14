@@ -5,7 +5,7 @@
 //  Created by Martin Lukacs on 13/09/2021.
 //
 
-public enum CRUDActions: String {
+public enum HttpActions: String {
     case get = "GET"
     case put = "PUT"
     case patch = "PATCH"
