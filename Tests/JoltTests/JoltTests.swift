@@ -1,6 +1,6 @@
     import XCTest
     @testable import Jolt
-
+    
     final class JoltTests: XCTestCase {
         func testExample() {
             // This is an example of a functional test case.
