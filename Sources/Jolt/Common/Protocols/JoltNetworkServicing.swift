@@ -6,3 +6,13 @@
 //
 
 import Foundation
+import Combine
+
+public protocol JoltNetworkServicing {
+    var joltNetworkClient: JoltNetwork { get }
+}
+
+// MARK: - Generic network calls
+public extension JoltNetworkServicing {
+
+}

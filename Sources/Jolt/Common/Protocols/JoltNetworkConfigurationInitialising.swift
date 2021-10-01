@@ -7,7 +7,7 @@
 
 import Foundation
 
-public protocol JoltNetworkConfigurationInitializer {
+public protocol JoltNetworkConfigurationInitialising {
     var logger: JoltLogging { get }
     var timeout: TimeInterval? { get }
     var sessionConfiguration: URLSessionConfiguration { get }
