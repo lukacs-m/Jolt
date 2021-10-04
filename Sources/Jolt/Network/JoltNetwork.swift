@@ -285,19 +285,3 @@ private extension JoltNetwork {
                 userInfo: [NSLocalizedDescriptionKey: HTTPURLResponse.localizedString(forStatusCode: statusCode)])
     }
 }
-
-private extension Dictionary where Key == String {
-    func buildBodyPart(boundary: String) -> Data {
-        var bodyData = Data()
-
-        for (key, value) in self {
-            let usedValue: Any = value is NSNull ? "null" : value
-            var body = ""
-            body += "--\(boundary)\r\n"
-            body += "Content-Disposition: form-data; name=\"\(key)\""
-            body += "\r\n\r\n\(usedValue)\r\n"
-            bodyData.append(body.data(using: .utf8)!)
-        }
-        return bodyData
-    }
-}
