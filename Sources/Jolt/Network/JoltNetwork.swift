@@ -8,11 +8,6 @@
 import Foundation
 import Combine
 
-//public protocol NetworkSessionRequestsActions {
-//    func get<AnyReturnType>(_ path: String, parameters: Any?) -> AnyPublisher<AnyReturnType, Error>
-//    func get<ReturnType>(_ path: String, parameters: Any?) -> AnyPublisher<ReturnType, Error> where ReturnType: Decodable
-//}
-
 public class JoltNetwork: NSObject, URLSessionDelegate {
     private let baseURL: String
     private var timeout: TimeInterval?
@@ -98,31 +93,34 @@ extension JoltNetwork: NetworkSessionAuthentificationConfiguring {
 
 
 extension JoltNetwork {
-    func executeDecodableRequest<ReturnType: Decodable>(_ action: HttpActions,
-                                                        for path: String,
-                                                        parameterType: RequestParameterType,
-                                                        parameters: Any?,
-                                                        parts: [FormDataPart]? = nil,
-                                                        responseType: RequestResponseType) -> AnyPublisher<ReturnType, Error>  {
+    struct RequestConfigs {
+        let requestAction: HttpActions
+        let path: String
+        let parameterType: RequestParameterType?
+        let parameters: Any?
+        var parts: [FormDataPart]? = nil
+        var boundary = ""
+        var responseType: RequestResponseType = .json
+    }
+    
+    func executeDecodableRequest<ReturnType: Decodable>(with requestConfigs: RequestConfigs) -> AnyPublisher<ReturnType, Error>  {
         let request: URLRequest
         do {
-            request = try createRequest(action,
-                                        path: path,
-                                        parameterType: parameterType,
-                                        parameters: parameters,
-                                        parts: parts,
-                                        responseType: responseType)
+            request = try createRequest(with: requestConfigs)
         } catch let error {
             return .isFailing(with: error)
         }
         
         return session.dataTaskPublisher(for: request)
-            .tryMap { (data: Data, response: URLResponse) -> Data in
-                self.logger.log(response: response, and: data)
-                if let httpURLResponse = response as? HTTPURLResponse,
-                   !(200...299 ~= httpURLResponse.statusCode){
-                    throw JoltNetworkErrors.network("\(httpURLResponse.statusCode)")
-                }
+            .tryMap { [weak self] (data: Data, response: URLResponse) -> Data in
+                guard let self = self,
+                      self.isValidResponse(parameterType: requestConfigs.parameterType,
+                                           parameters: requestConfigs.parameters,
+                                           data: data,
+                                           request: request,
+                                           response: response) else {
+                          throw JoltNetworkErrors.network("\((response as? HTTPURLResponse)?.statusCode ?? -42)")
+                      }
                 return data
             }
             .decode()
@@ -132,31 +130,24 @@ extension JoltNetwork {
             .eraseToAnyPublisher()
     }
     
-    func executeNonDecodableRequest<ReturnType>(_ action: HttpActions,
-                                                for path: String,
-                                                parameterType: RequestParameterType,
-                                                parameters: Any?,
-                                                parts: [FormDataPart]? = nil,
-                                                responseType: RequestResponseType) -> AnyPublisher<ReturnType, Error>  {
+    func executeNonDecodableRequest<ReturnType>(with requestConfigs: RequestConfigs) -> AnyPublisher<ReturnType, Error>  {
         let request: URLRequest
         do {
-            request = try createRequest(action,
-                                        path: path,
-                                        parameterType: parameterType,
-                                        parameters: parameters,
-                                        parts: parts,
-                                        responseType: responseType)
+            request = try createRequest(with: requestConfigs)
         } catch let error {
             return .isFailing(with: error)
         }
         
         return session.dataTaskPublisher(for: request)
-            .tryMap { (data: Data, response: URLResponse) -> ReturnType in
-                self.logger.log(response: response, and: data)
-                if let httpURLResponse = response as? HTTPURLResponse,
-                   !(200...299 ~= httpURLResponse.statusCode){
-                    throw JoltNetworkErrors.network("\(httpURLResponse.statusCode)")
-                }
+            .tryMap { [weak self] (data: Data, response: URLResponse) -> ReturnType in
+                guard let self = self,
+                      self.isValidResponse(parameterType: requestConfigs.parameterType,
+                                           parameters: requestConfigs.parameters,
+                                           data: data,
+                                           request: request,
+                                           response: response) else {
+                          throw JoltNetworkErrors.network("\((response as? HTTPURLResponse)?.statusCode ?? -42)")
+                      }
                 if ReturnType.self is Void.Type {
                     return Void() as! ReturnType
                 } else if ReturnType.self is Data.Type {
@@ -174,39 +165,20 @@ extension JoltNetwork {
 
 // MARK: - Utils
 private extension JoltNetwork {
-    struct ParamConfigs {
-        let requestAction: HttpActions
-        let path: String
-        let parameterType: RequestParameterType?
-        let parameters: Any?
-        var parts: [FormDataPart]? = nil
-        let boundary = ""
-    }
     
-    func createRequest(_ requestAction: HttpActions,
-                       path: String,
-                       parameterType: RequestParameterType?,
-                       parameters: Any?,
-                       parts: [FormDataPart]? = nil,
-                       responseType: RequestResponseType) throws -> URLRequest {
-        guard let url = composedURL(with: path) else {
+    func createRequest(with requestConfigs: RequestConfigs) throws -> URLRequest {
+        guard let url = composedURL(with: requestConfigs.path) else {
             throw JoltNetworkErrors.unableToComposeUrl
         }
         var request = URLRequest(url: url,
-                                 requestAction: requestAction,
-                                 parameterType: parameterType,
-                                 responseType: responseType,
+                                 requestAction: requestConfigs.requestAction,
+                                 parameterType: requestConfigs.parameterType,
+                                 responseType: requestConfigs.responseType,
                                  boundary: multipartBoundary,
                                  authHeader: authHeader,
                                  headerFields: sessionHeader)
         do {
-            let paramConfig = ParamConfigs(requestAction: requestAction,
-                                           path: path,
-                                           parameterType: parameterType,
-                                           parameters: parameters,
-                                           parts: parts)
-            
-            request = try addParams(to: request, with: paramConfig)
+            request = try addParams(to: request, with: requestConfigs)
         } catch let error {
             throw error
         }
@@ -214,7 +186,7 @@ private extension JoltNetwork {
     }
     
     func addParams(to request: URLRequest,
-                   with paramConfig: ParamConfigs) throws -> URLRequest {
+                   with paramConfig: RequestConfigs) throws -> URLRequest {
         guard let  parameterType = paramConfig.parameterType else {
             return request
         }
@@ -251,23 +223,16 @@ private extension JoltNetwork {
                 case .post, .put, .patch:
                     updatedRequest.httpBody = formattedParameters.data(using: .utf8)
                 }
-            } catch let error as NSError {
-                print(error)
+            } catch let error as JoltNetworkErrors {
+                throw error
             }
         case .multipartFormData:
             var bodyData = Data()
             
             if let parameters = paramConfig.parameters as? [String: Any] {
-                for (key, value) in parameters {
-                    let usedValue: Any = value is NSNull ? "null" : value
-                    var body = ""
-                    body += "--\(multipartBoundary)\r\n"
-                    body += "Content-Disposition: form-data; name=\"\(key)\""
-                    body += "\r\n\r\n\(usedValue)\r\n"
-                    bodyData.append(body.data(using: .utf8)!)
-                }
+                bodyData = parameters.buildBodyPart(boundary: multipartBoundary)
             }
-            
+
             if let parts = paramConfig.parts {
                 for var part in parts {
                     part.boundary = multipartBoundary
@@ -295,5 +260,47 @@ private extension JoltNetwork {
             return nil
         }
         return url
+    }
+    
+    func isValidResponse(parameterType: RequestParameterType?,
+                         parameters: Any? = nil,
+                         data: Data,
+                         request: URLRequest,
+                         response: URLResponse) -> Bool {
+        logger.log(response: response, and: data)
+        if let httpURLResponse = response as? HTTPURLResponse,
+           !(200...299 ~= httpURLResponse.statusCode) {
+            let error = createError(with: httpURLResponse.statusCode)
+            logger.logError(parameterType: parameterType,
+                            parameters: parameters,
+                            data: data,
+                            request: request,
+                            response: response,
+                            error: error)
+            return false
+        }
+        return true
+    }
+    
+    func createError(with statusCode: Int) -> NSError {
+        NSError(domain: "Jolt",
+                code: statusCode,
+                userInfo: [NSLocalizedDescriptionKey: HTTPURLResponse.localizedString(forStatusCode: statusCode)])
+    }
+}
+
+private extension Dictionary where Key == String {
+    func buildBodyPart(boundary: String) -> Data {
+        var bodyData = Data()
+
+        for (key, value) in self {
+            let usedValue: Any = value is NSNull ? "null" : value
+            var body = ""
+            body += "--\(boundary)\r\n"
+            body += "Content-Disposition: form-data; name=\"\(key)\""
+            body += "\r\n\r\n\(usedValue)\r\n"
+            bodyData.append(body.data(using: .utf8)!)
+        }
+        return bodyData
     }
 }

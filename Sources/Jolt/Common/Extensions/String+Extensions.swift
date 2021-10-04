@@ -8,7 +8,6 @@
 import Foundation
 
 extension String {
-    
     func encodeUTF8() -> String? {
         if let _ = URL(string: self) {
             return self
@@ -16,7 +15,8 @@ extension String {
         
         var components = self.components(separatedBy: "/")
         guard let lastComponent = components.popLast(),
-              let endcodedLastComponent = lastComponent.addingPercentEncoding(withAllowedCharacters: .urlQueryParametersAllowed) else {
+              let endcodedLastComponent =
+                lastComponent.addingPercentEncoding(withAllowedCharacters: .urlQueryParametersAllowed) else {
                   return nil
               }
         

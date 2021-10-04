@@ -10,6 +10,7 @@ enum JoltNetworkErrors: Error {
     case unableToParseRequest
     case jsonParamSerialisation
     case nonValidParamDictionary
+    case paramsEncodingError
     case mismatchErrorInReturnType
     case network(String)
     case genericError(String)
