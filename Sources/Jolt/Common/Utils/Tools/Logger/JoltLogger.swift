@@ -53,23 +53,21 @@ public final class JoltNetworkLogger: JoltLogging {
         guard let error = error else { return }
         var errorInfos = "========== Networking Error =========="
 
-        print(start)
-
         let isCancelled = error.code == NSURLErrorCancelled
         if isCancelled {
             if let request = request, let url = request.url {
-                errorInfos = errorInfos + "\r\nCancelled request: \(url.absoluteString)"
+                errorInfos += "\r\nCancelled request: \(url.absoluteString)"
             }
         } else {
-            errorInfos = errorInfos + "\r\n*** Request ***"
+            errorInfos += "\r\n*** Request ***"
             + "\r\nError \(error.code): \(error.description)"
 
             if let request = request, let url = request.url {
-                errorInfos = errorInfos + "\r\nURL: \(url.absoluteString)"
+                errorInfos += "\r\nURL: \(url.absoluteString)"
             }
 
             if let headers = request?.allHTTPHeaderFields {
-                errorInfos = errorInfos + "\r\nHeaders: \(headers)"
+                errorInfos += "\r\nHeaders: \(headers)"
             }
 
             if let parameterType = parameterType, let parameters = parameters {
@@ -79,10 +77,10 @@ public final class JoltNetworkLogger: JoltLogging {
                         let data = try JSONSerialization.data(withJSONObject: parameters, options: .prettyPrinted)
                         let string = String(data: data, encoding: .utf8)
                         if let string = string {
-                            errorInfos = errorInfos + "\r\nParameters: \(string)"
+                            errorInfos += "\r\nParameters: \(string)"
                         }
                     } catch let error as NSError {
-                        errorInfos = errorInfos + "\r\nFailed pretty printing parameters: \(parameters), error: \(error)"
+                        errorInfos += "\r\nFailed pretty printing parameters: \(parameters), error: \(error)"
                     }
                 case .formURLEncoded:
                     guard let parametersDictionary = parameters as? [String: Any] else {
@@ -90,26 +88,26 @@ public final class JoltNetworkLogger: JoltLogging {
                     }
                     do {
                         let formattedParameters = try parametersDictionary.urlEncodedString()
-                        errorInfos = errorInfos + "\r\nParameters: \(formattedParameters)"
+                        errorInfos += "\r\nParameters: \(formattedParameters)"
                     } catch let error as NSError {
-                        errorInfos = errorInfos + "F\r\nailed parsing Parameters: \(parametersDictionary) — \(error)"
+                        errorInfos += "F\r\nailed parsing Parameters: \(parametersDictionary) — \(error)"
                     }
                 default: break
                 }
             }
 
             if let data = data, let stringData = String(data: data, encoding: .utf8) {
-                errorInfos = errorInfos + "\r\nData: \(stringData)"
+                errorInfos += "\r\nData: \(stringData)"
             }
 
             if let response = response as? HTTPURLResponse {
-                errorInfos = errorInfos + "\r\n*** Response ***"
+                errorInfos += "\r\n*** Response ***"
                 + "\r\nHeaders: \(response.allHeaderFields)"
                 + "\r\nStatus code: \(response.statusCode) — \(HTTPURLResponse.localizedString(forStatusCode: response.statusCode))"
             }
         }
-        errorInfos = errorInfos + "\r\n================= ~ =================="
-        Logger.joltNetworking.debug(errorInfos)
+        errorInfos += "\r\n================= ~ =================="
+        Logger.joltNetworking.debug("\(errorInfos)")
     }
     
     public func setLoggingLevel(with level: LogLevel) {

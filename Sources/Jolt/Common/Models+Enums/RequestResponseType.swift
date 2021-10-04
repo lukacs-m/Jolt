@@ -11,7 +11,7 @@ public enum RequestResponseType {
     case json
     case data
     
-    var accept: String? {
+    public var accept: String? {
         switch self {
         case .json:
             return "application/json"

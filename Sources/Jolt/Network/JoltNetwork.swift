@@ -114,8 +114,7 @@ extension JoltNetwork {
         return session.dataTaskPublisher(for: request)
             .tryMap { [weak self] (data: Data, response: URLResponse) -> Data in
                 guard let self = self,
-                      self.isValidResponse(parameterType: requestConfigs.parameterType,
-                                           parameters: requestConfigs.parameters,
+                      self.isValidResponse(with: requestConfigs,
                                            data: data,
                                            request: request,
                                            response: response) else {
@@ -125,7 +124,7 @@ extension JoltNetwork {
             }
             .decode()
             .mapError { error -> JoltNetworkErrors in
-                return JoltNetworkErrors.network(error.localizedDescription)
+                return JoltNetworkErrors.decodeError(error.localizedDescription)
             }
             .eraseToAnyPublisher()
     }
@@ -141,8 +140,7 @@ extension JoltNetwork {
         return session.dataTaskPublisher(for: request)
             .tryMap { [weak self] (data: Data, response: URLResponse) -> ReturnType in
                 guard let self = self,
-                      self.isValidResponse(parameterType: requestConfigs.parameterType,
-                                           parameters: requestConfigs.parameters,
+                      self.isValidResponse(with: requestConfigs,
                                            data: data,
                                            request: request,
                                            response: response) else {
@@ -236,12 +234,12 @@ private extension JoltNetwork {
             if let parts = paramConfig.parts {
                 for var part in parts {
                     part.boundary = multipartBoundary
-                    bodyData.append(part.formData as Data)
+                    bodyData.append(part.formData)
                 }
             }
             
             bodyData.append("--\(multipartBoundary)--\r\n".data(using: .utf8)!)
-            updatedRequest.httpBody = bodyData as Data
+            updatedRequest.httpBody = bodyData
         case .custom:
             updatedRequest.httpBody = paramConfig.parameters as? Data
         }
@@ -262,8 +260,7 @@ private extension JoltNetwork {
         return url
     }
     
-    func isValidResponse(parameterType: RequestParameterType?,
-                         parameters: Any? = nil,
+    func isValidResponse(with requestConfigs: RequestConfigs,
                          data: Data,
                          request: URLRequest,
                          response: URLResponse) -> Bool {
@@ -271,8 +268,8 @@ private extension JoltNetwork {
         if let httpURLResponse = response as? HTTPURLResponse,
            !(200...299 ~= httpURLResponse.statusCode) {
             let error = createError(with: httpURLResponse.statusCode)
-            logger.logError(parameterType: parameterType,
-                            parameters: parameters,
+            logger.logError(parameterType: requestConfigs.parameterType,
+                            parameters: requestConfigs.parameters,
                             data: data,
                             request: request,
                             response: response,
