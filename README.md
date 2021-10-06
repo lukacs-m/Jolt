@@ -4,14 +4,12 @@
 ![Platform: iOS 14+](https://img.shields.io/badge/platform-iOS%2013%2B-blue.svg?style=flat)
 [![SPM compatible](https://img.shields.io/badge/SPM-compatible-4BC51D.svg?style=flat)](https://swift.org/package-manager/)
 [![License: MIT](http://img.shields.io/badge/license-MIT-lightgrey.svg?style=flat)](https://github.com/freshOS/ws/blob/master/LICENSE)
-[![Build Status](https://app.bitrise.io/app/a6d157138f9ee86d/status.svg?token=W7-x9K5U976xiFrI8XqcJw&branch=master)](https://app.bitrise.io/app/a6d157138f9ee86d)
-[![codebeat badge](https://codebeat.co/badges/ae5feb24-529d-49fe-9e28-75dfa9e3c35d)](https://codebeat.co/projects/github-com-freshos-networking-master)
 
 Jolt brings together `URLSession`, `Combine`, `Decodable` and `Generics` to
 make connecting to a JSON api a breeze.
 
 ```swift
-struct Api: NetworkingService {
+struct Api: JoltNetworkServicing {
 
     let network = JoltNetwork(baseURL: "https://jsonplaceholder.typicode.com")
 
@@ -28,13 +26,6 @@ api.fetchPost().sink(receiveCompletion: { _ in }) { post in
     // Get back some post \o/
 }.store(in: &cancellables)
 ```
-
-## How
-By providing a lightweight client that **automates boilerplate code everyone has to write**.  
-By exposing a **delightfully simple** api to get the job done simply, clearly, quickly.  
-Getting swift models from a JSON api is now *a problem of the past*
-
-URLSession + Combine + Generics + Protocols = Jolt.
 
 ## What
 - [x] Build a concise Api
@@ -61,9 +52,6 @@ URLSession + Combine + Generics + Protocols = Jolt.
     * [URL-encoding](#url-encoding)
     * [Multipart](#multipart)
     * [Others](#others)
-<!--* [Upload multipart data](#upload-multipart-data)-->
-<!--* [Add Headers](#add-headers)-->
-<!--* [Add Timeout](#add-timeout)-->
 * [Cancel a request](#cancel-a-request)
 * [Log Network calls](#log-network-calls)
 * [Handling errors](#handling-errors)
@@ -139,7 +127,7 @@ client.get("/get") { result in
 
 ### Custom authentication header
 
-To authenticate using a custom authentication header, for example **"Token token=AAAFFAAAA3DAAAAAA"** you would need to set the following header field: `Authorization: Token token=AAAFFAAAA3DAAAAAA`. Luckily, **Networking** provides a simple way to do this:
+To authenticate using a custom authentication header, for example **"Token token=AAAFFAAAA3DAAAAAA"** you would need to set the following header field: `Authorization: Token token=AAAFFAAAA3DAAAAAA`. Luckily, **Jolt** provides a simple way to do this:
 
 ```swift
 client.setAuthorizationHeader(headerValue: "Token token=AAAFFAAAA3DAAAAAA")
@@ -166,7 +154,7 @@ client.get("/posts/1").sink(receiveCompletion: { _ in }) { (data:Data) in
 ```
 
 ### Get the type you want back
-`Networking` recognizes the type you want back via type inference.
+`Jolt` recognizes the type you want back via type inference.
 Types supported are `Void`, `Data`, `Any`(JSON), `Decodable models`  
 
 This enables keeping a simple api while supporting many types :
@@ -189,41 +177,38 @@ client.postsPublisher("/posts/1", parameters: ["optin" : true ])
 
 ## Choosing a Content or Parameter Type
 
-The `Content-Type` HTTP specification is so unfriendly, you have to know the specifics of it before understanding that content type is really just the parameter type. Because of this **Networking** uses a `ParameterType` instead of a `ContentType`. Anyway, here's hoping this makes it more human friendly.
+The `Content-Type` HTTP specification is so unfriendly, you have to know the specifics of it before understanding that content type is really just the parameter type. Because of this **Jolt** uses a `ParameterType` instead of a `ContentType`. Anyway, here's hoping this makes it more human friendly.
 
 ### JSON
 
-**Networking** by default uses `application/json` as the `Content-Type`, if you're sending JSON you don't have to do anything. But if you want to send other types of parameters you can do it by providing the `ParameterType` attribute.
+**Jolt** by default uses `application/json` as the `Content-Type`, if you're sending JSON you don't have to do anything. But if you want to send other types of parameters you can do it by providing the `ParameterType` attribute.
 
 When sending JSON your parameters will be serialized to data using `NSJSONSerialization`.
 
 ```swift
-let networking = Networking(baseURL: "http://httpbin.org")
-networking.post("/post", parameters: ["name" : "jameson"]) { result in
+client.post("/post", parameters: ["name" : "jameson"]) { result in
    // Successfull post using `application/json` as `Content-Type`
 }
 ```
 
 ### URL-encoding
 
- If you want to use `application/x-www-form-urlencoded` just use the `.formURLEncoded` parameter type, internally **Networking** will format your parameters so they use [`Percent-encoding` or `URL-enconding`](https://en.wikipedia.org/wiki/Percent-encoding#The_application.2Fx-www-form-urlencoded_type).
+ If you want to use `application/x-www-form-urlencoded` just use the `.formURLEncoded` parameter type, internally **Jolt** will format your parameters so they use [`Percent-encoding` or `URL-enconding`](https://en.wikipedia.org/wiki/Percent-encoding#The_application.2Fx-www-form-urlencoded_type).
 
 ```swift
-let networking = Networking(baseURL: "http://httpbin.org")
-networking.post("/post", parameterType: .formURLEncoded, parameters: ["name" : "jameson"]) { result in
+client.post("/post", parameterType: .formURLEncoded, parameters: ["name" : "jameson"]) { result in
    // Successfull post using `application/x-www-form-urlencoded` as `Content-Type`
 }
 ```
 
 ### Multipart
 
-**Networking** provides a simple model to use `multipart/form-data`. A multipart request consists in appending one or several [FormDataPart](https://github.com/3lvis/Networking/blob/master/Sources/FormDataPart.swift) items to a request. The simplest multipart request would look like this.
+**Jolt** provides a simple model to use `multipart/form-data`. A multipart request consists in appending one or several FormDataPart items to a request. The simplest multipart request would look like this.
 
 ```swift
-let networking = Networking(baseURL: "https://example.com")
 let imageData = UIImagePNGRepresentation(imageToUpload)!
 let part = FormDataPart(data: imageData, parameterName: "file", filename: "selfie.png")
-networking.post("/image/upload", part: part) { result in
+client.post("/image/upload", part: part) { result in
   // Successfull upload using `multipart/form-data` as `Content-Type`
 }
 ```
@@ -231,11 +216,10 @@ networking.post("/image/upload", part: part) { result in
 If you need to use several parts or append other parameters than aren't files, you can do it like this:
 
 ```swift
-let networking = Networking(baseURL: "https://example.com")
 let part1 = FormDataPart(data: imageData1, parameterName: "file1", filename: "selfie1.png")
 let part2 = FormDataPart(data: imageData2, parameterName: "file2", filename: "selfie2.png")
 let parameters = ["username" : "3lvis"]
-networking.post("/image/upload", parts: [part1, part2], parameters: parameters) { result in
+client.post("/image/upload", parts: [part1, part2], parameters: parameters) { result in
     // Do something
 }
 ```
@@ -246,53 +230,14 @@ networking.post("/image/upload", parts: [part1, part2], parameters: parameters) 
 
 ### Others
 
-At the moment **Networking** supports four types of `ParameterType`s out of the box: `JSON`, `FormURLEncoded`, `MultipartFormData` and `Custom`. Meanwhile `JSON` and `FormURLEncoded` serialize your parameters in some way, `Custom(String)` sends your parameters as plain `NSData` and sets the value inside `Custom` as the `Content-Type`.
+At the moment **Jolt** supports four types of `ParameterType`s out of the box: `JSON`, `FormURLEncoded`, `MultipartFormData` and `Custom`. Meanwhile `JSON` and `FormURLEncoded` serialize your parameters in some way, `Custom(String)` sends your parameters as plain `NSData` and sets the value inside `Custom` as the `Content-Type`.
 
 For example:
 ```swift
-let networking = Networking(baseURL: "http://httpbin.org")
-networking.post("/upload", parameterType: .Custom("application/octet-stream"), parameters: imageData) { result in
+client.post("/upload", parameterType: .Custom("application/octet-stream"), parameters: imageData) { result in
    // Successfull upload using `application/octet-stream` as `Content-Type`
 }
 ```
-
-<!---->
-<!--### Upload multipart data-->
-<!--For multipart calls (post/put), just pass a `MultipartData` struct to the `multipartData` parameter.-->
-<!--```swift-->
-<!--let params: [String: CustomStringConvertible] = [ "type_resource_id": 1, "title": photo.title]-->
-<!--let multipartData = MultipartData(name: "file",-->
-<!--                                  fileData: photo.data,-->
-<!--                                  fileName: "photo.jpg",-->
-<!--                                   mimeType: "image/jpeg")-->
-<!--client.post("/photos/upload",-->
-<!--            params: params,-->
-<!--            multipartData: multipartData).sink(receiveCompletion: { _ in }) { (data:Data?, progress: Progress) in-->
-<!--                if let data = data {-->
-<!--                    print("upload is complete : \(data)")-->
-<!--                } else {-->
-<!--                    print("progress: \(progress)")-->
-<!--                }-->
-<!--}.store(in: &cancellables)-->
-<!--```-->
-<!---->
-<!--### Add Headers-->
-<!--Headers are added via the `headers` property on the client.-->
-<!--```swift-->
-<!--client.headers["Authorization"] = "[mytoken]"-->
-<!--```-->
-<!---->
-<!--### Add Timeout-->
-<!--Timeout (TimeInterval in seconds) is added via the optional `timeout` property on the client.-->
-<!--```swift-->
-<!--let client = NetworkingClient(baseURL: "https://jsonplaceholder.typicode.com", timeout: 15)-->
-<!--```-->
-<!---->
-<!--Alternatively,-->
-<!---->
-<!--```swift-->
-<!--client.timeout = 15 -->
-<!--```-->
 
 ### Cancel a request
 Since `Jolt` uses the Combine framework. You just have to cancel the `AnyCancellable` returned by the `sink` call.
@@ -314,10 +259,10 @@ client.setLogLevel(with: .debugInformative)
 ```
 
 ### Support Decodable parsing.
-For a model to be parsable by `Networking`, it needs to conform to the `Decodable` protocol.
+For a model to be parsable by `Jolt`, it needs to conform to the `Decodable` protocol.
 
 ### Design a clean api
-In order to write a concise api, Networking provides the `NetworkingService` protocol.
+In order to write a concise api, Jolt provides the `JoltNetworkServicing` protocol.
 This will forward your calls to the underlying client so that your only have to write `get("/route")` instead of `network.get("/route")`, while this is overkill for tiny apis, it definitely keep things concise when working with massive apis.
 
 
@@ -332,9 +277,9 @@ struct Article: Codable {
 Here is what a typical CRUD api would look like :
 
 ```swift
-struct CRUDApi: NetworkingService {
+struct CRUDApi: JoltNetworkServicing {
 
-    var network = NetworkingClient(baseURL: "https://my-api.com")
+    var network = JoltNetwork(baseURL: "https://my-api.com")
 
     // Create
     func create(article a: Article) -> AnyPublisher<Article, Error> {
