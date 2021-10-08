@@ -58,7 +58,8 @@ extension JoltNetwork: NetworkSessionHeaderConfiguring {
 
 // MARK: - Session authentification configuration
 extension JoltNetwork: NetworkSessionAuthentificationConfiguring {
-    /// Authenticates using Basic Authentication, it converts username:password to Base64 then sets the Authorization header to "Basic \(Base64(username:password))".
+    /// Authenticates using Basic Authentication,
+    /// it converts username:password to Base64 then sets the Authorization header to "Basic \(Base64(username:password))".
     ///
     /// - Parameters:
     ///   - username: The username to be used.
@@ -93,7 +94,7 @@ extension JoltNetwork: NetworkSessionAuthentificationConfiguring {
 
 extension JoltNetwork {
     
-    func executeDecodableRequest<ReturnType: Decodable>(with requestConfigs: RequestConfigs) -> AnyPublisher<ReturnType, Error>  {
+    func executeDecodableRequest<ReturnType: Decodable>(with requestConfigs: RequestConfigs) -> AnyPublisher<ReturnType, Error> {
         let request: URLRequest
         do {
             request = try createRequest(with: requestConfigs)
@@ -112,7 +113,7 @@ extension JoltNetwork {
             .eraseToAnyPublisher()
     }
     
-    func executeNonDecodableRequest<ReturnType>(with requestConfigs: RequestConfigs) -> AnyPublisher<ReturnType, Error>  {
+    func executeNonDecodableRequest<ReturnType>(with requestConfigs: RequestConfigs) -> AnyPublisher<ReturnType, Error> {
         let request: URLRequest
         do {
             request = try createRequest(with: requestConfigs)
