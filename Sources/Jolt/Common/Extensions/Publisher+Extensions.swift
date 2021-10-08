@@ -66,9 +66,10 @@ extension Publisher {
         handleEvents(receiveCompletion: { completion in
             switch completion {
             case .failure(let error):
-                logger.logError(requestConfig: requestConfig,
-                                     request: request,
-                                     error: error)
+                let requestInfos = RequestLogInfos(parameterType: requestConfig.parameterType,
+                                                   parameters: requestConfig.parameters,
+                                                   request: request)
+                logger.logError(requestConfig: requestInfos, error: error)
             case .finished:
                 break
             }

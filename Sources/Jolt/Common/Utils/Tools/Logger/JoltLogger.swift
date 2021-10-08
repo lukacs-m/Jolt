@@ -10,12 +10,7 @@ import OSLog
 public protocol JoltLogging {
     func log(request: URLRequest)
     func log(response: URLResponse, and data: Data?)
-    func logError(parameterType: RequestParameterType?,
-                  parameters: Any?,
-                  data: Data?,
-                  request: URLRequest?,
-                  response: URLResponse?,
-                  error: NSError?)
+    func logError(requestConfig: RequestLogInfos, error: Error?)
     func setLoggingLevel(with level: LogLevel)
 }
 
@@ -40,37 +35,37 @@ public final class JoltNetworkLogger: JoltLogging {
         logData(for: data)
     }
     
-    public func logError(parameterType: RequestParameterType?,
-                  parameters: Any? = nil,
-                  data: Data?,
-                  request: URLRequest?,
-                  response: URLResponse?,
-                  error: NSError?) {
-        guard logLevel != .none else {
+    public func setLoggingLevel(with level: LogLevel) {
+        logLevel = level
+    }
+    
+    public func logError(requestConfig: RequestLogInfos,
+                  error: Error?) {
+        guard logLevel == .debugVerbose else {
             return
         }
         
         guard let error = error else { return }
         var errorInfos = "========== Networking Error =========="
-
-        let isCancelled = error.code == NSURLErrorCancelled
+        
+        let isCancelled = error._code == NSURLErrorCancelled
         if isCancelled {
-            if let request = request, let url = request.url {
+            if let request = requestConfig.request, let url = request.url {
                 errorInfos += "\r\nCancelled request: \(url.absoluteString)"
             }
         } else {
             errorInfos += "\r\n*** Request ***"
-            + "\r\nError \(error.code): \(error.description)"
-
-            if let request = request, let url = request.url {
+            + "\r\nError \(error._code): \(error.localizedDescription)"
+            
+            if let request = requestConfig.request, let url = request.url {
                 errorInfos += "\r\nURL: \(url.absoluteString)"
             }
-
-            if let headers = request?.allHTTPHeaderFields {
+            
+            if let headers = requestConfig.request?.allHTTPHeaderFields {
                 errorInfos += "\r\nHeaders: \(headers)"
             }
-
-            if let parameterType = parameterType, let parameters = parameters {
+            
+            if let parameterType = requestConfig.parameterType, let parameters = requestConfig.parameters {
                 switch parameterType {
                 case .json:
                     do {
@@ -95,23 +90,19 @@ public final class JoltNetworkLogger: JoltLogging {
                 default: break
                 }
             }
-
-            if let data = data, let stringData = String(data: data, encoding: .utf8) {
-                errorInfos += "\r\nData: \(stringData)"
-            }
-
-            if let response = response as? HTTPURLResponse {
-                errorInfos += "\r\n*** Response ***"
-                + "\r\nHeaders: \(response.allHeaderFields)"
-                + "\r\nStatus code: \(response.statusCode) — \(HTTPURLResponse.localizedString(forStatusCode: response.statusCode))"
-            }
+            
+            //            if let data = output?.data, let stringData = String(data: data, encoding: .utf8) {
+            //                errorInfos += "\r\nData: \(stringData)"
+            //            }
+            //
+            //            if let response = output?.response as? HTTPURLResponse {
+            //                errorInfos += "\r\n*** Response ***"
+            //                + "\r\nHeaders: \(response.allHeaderFields)"
+            //                + "\r\nStatus code: \(response.statusCode) — \(HTTPURLResponse.localizedString(forStatusCode: response.statusCode))"
+            //            }
         }
         errorInfos += "\r\n================= ~ =================="
         Logger.joltNetworking.debug("\(errorInfos)")
-    }
-    
-    public func setLoggingLevel(with level: LogLevel) {
-        logLevel = level
     }
 }
 
@@ -143,8 +134,8 @@ private extension JoltNetworkLogger {
     func logResponse(for response: URLResponse) {
         guard let urlResponse = response as? HTTPURLResponse,
               let url = urlResponse.url else {
-            return
-        }
+                  return
+              }
         
         Logger.joltNetworking.debug("Response status code: \(urlResponse.statusCode) for url: \(url.absoluteString)")
         
