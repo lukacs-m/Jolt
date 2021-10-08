@@ -40,7 +40,7 @@ public extension JoltNetworkServicing {
     }
     
     func delete<ReturnType: Decodable>(_ path: String,
-                                       parameters: Any? = nil) -> AnyPublisher<ReturnType, Error>  {
+                                       parameters: Any? = nil) -> AnyPublisher<ReturnType, Error> {
         joltNetworkClient.delete(path, parameters: parameters)
     }
     
@@ -48,7 +48,6 @@ public extension JoltNetworkServicing {
     func get<ReturnType>(_ path: String, parameters: Any? = nil) -> AnyPublisher<ReturnType, Error> {
         joltNetworkClient.get(path, parameters: parameters)
     }
-    
     
     func post<ReturnType>(_ path: String,
                           parameterType: RequestParameterType = .json,
@@ -70,7 +69,7 @@ public extension JoltNetworkServicing {
     }
     
     func delete<ReturnType>(_ path: String,
-                            parameters: Any? = nil) -> AnyPublisher<ReturnType, Error>  {
+                            parameters: Any? = nil) -> AnyPublisher<ReturnType, Error> {
         joltNetworkClient.delete(path, parameters: parameters)
     }
 }

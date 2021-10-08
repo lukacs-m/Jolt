@@ -22,4 +22,18 @@ extension String {
         
         return (components + [endcodedLastComponent]).joined(separator: "/")
     }
+    
+    func urlEncoded(with params: String) -> String {
+        let urlEncodedPath: String
+        if self.contains("?") {
+            if let lastCharacter = self.last, lastCharacter == "?" {
+                urlEncodedPath = self + params
+            } else {
+                urlEncodedPath = self + "&" + params
+            }
+        } else {
+            urlEncodedPath = self + "?" + params
+        }
+        return urlEncodedPath
+    }
 }

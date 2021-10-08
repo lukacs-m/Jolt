@@ -58,7 +58,8 @@ extension JoltNetwork: NetworkSessionHeaderConfiguring {
 
 // MARK: - Session authentification configuration
 extension JoltNetwork: NetworkSessionAuthentificationConfiguring {
-    /// Authenticates using Basic Authentication, it converts username:password to Base64 then sets the Authorization header to "Basic \(Base64(username:password))".
+    /// Authenticates using Basic Authentication,
+    /// it converts username:password to Base64 then sets the Authorization header to "Basic \(Base64(username:password))".
     ///
     /// - Parameters:
     ///   - username: The username to be used.
@@ -91,19 +92,9 @@ extension JoltNetwork: NetworkSessionAuthentificationConfiguring {
     }
 }
 
-
 extension JoltNetwork {
-    struct RequestConfigs {
-        let requestAction: HttpActions
-        let path: String
-        let parameterType: RequestParameterType?
-        let parameters: Any?
-        var parts: [FormDataPart]? = nil
-        var boundary = ""
-        var responseType: RequestResponseType = .json
-    }
     
-    func executeDecodableRequest<ReturnType: Decodable>(with requestConfigs: RequestConfigs) -> AnyPublisher<ReturnType, Error>  {
+    func executeDecodableRequest<ReturnType: Decodable>(with requestConfigs: RequestConfigs) -> AnyPublisher<ReturnType, Error> {
         let request: URLRequest
         do {
             request = try createRequest(with: requestConfigs)
@@ -112,16 +103,9 @@ extension JoltNetwork {
         }
         
         return session.dataTaskPublisher(for: request)
-            .tryMap { [weak self] (data: Data, response: URLResponse) -> Data in
-                guard let self = self,
-                      self.isValidResponse(with: requestConfigs,
-                                           data: data,
-                                           request: request,
-                                           response: response) else {
-                          throw JoltNetworkErrors.network("\((response as? HTTPURLResponse)?.statusCode ?? -42)")
-                      }
-                return data
-            }
+            .logURLResponse(with: logger)
+            .validateDataResponse()
+            .logError(with: logger, request: request, and: requestConfigs)
             .decode()
             .mapError { error -> JoltNetworkErrors in
                 return JoltNetworkErrors.decodeError(error.localizedDescription)
@@ -129,7 +113,7 @@ extension JoltNetwork {
             .eraseToAnyPublisher()
     }
     
-    func executeNonDecodableRequest<ReturnType>(with requestConfigs: RequestConfigs) -> AnyPublisher<ReturnType, Error>  {
+    func executeNonDecodableRequest<ReturnType>(with requestConfigs: RequestConfigs) -> AnyPublisher<ReturnType, Error> {
         let request: URLRequest
         do {
             request = try createRequest(with: requestConfigs)
@@ -138,25 +122,9 @@ extension JoltNetwork {
         }
         
         return session.dataTaskPublisher(for: request)
-            .tryMap { [weak self] (data: Data, response: URLResponse) -> ReturnType in
-                guard let self = self,
-                      self.isValidResponse(with: requestConfigs,
-                                           data: data,
-                                           request: request,
-                                           response: response) else {
-                          throw JoltNetworkErrors.network("\((response as? HTTPURLResponse)?.statusCode ?? -42)")
-                      }
-                if ReturnType.self is Void.Type {
-                    return Void() as! ReturnType
-                } else if ReturnType.self is Data.Type {
-                    return data as! ReturnType
-                }
-                guard let returnObject = try JSONSerialization.jsonObject(with: data, options: []) as? ReturnType else {
-                    throw JoltNetworkErrors.mismatchErrorInReturnType
-                }
-                
-                return returnObject
-            }
+            .logURLResponse(with: logger)
+            .validateGenericResponse()
+            .logError(with: logger, request: request, and: requestConfigs)
             .eraseToAnyPublisher()
     }
 }
@@ -207,39 +175,16 @@ private extension JoltNetwork {
                 let formattedParameters = try parametersDictionary.urlEncodedString()
                 switch paramConfig.requestAction {
                 case .get, .delete:
-                    let urlEncodedPath: String
-                    if paramConfig.path.contains("?") {
-                        if let lastCharacter = paramConfig.path.last, lastCharacter == "?" {
-                            urlEncodedPath = paramConfig.path + formattedParameters
-                        } else {
-                            urlEncodedPath = paramConfig.path + "&" + formattedParameters
-                        }
-                    } else {
-                        urlEncodedPath = paramConfig.path + "?" + formattedParameters
-                    }
+                    let urlEncodedPath = paramConfig.path.urlEncoded(with: formattedParameters)
                     updatedRequest.url = composedURL(with: urlEncodedPath)
                 case .post, .put, .patch:
                     updatedRequest.httpBody = formattedParameters.data(using: .utf8)
                 }
-            } catch let error as JoltNetworkErrors {
+            } catch let error {
                 throw error
             }
         case .multipartFormData:
-            var bodyData = Data()
-            
-            if let parameters = paramConfig.parameters as? [String: Any] {
-                bodyData = parameters.buildBodyPart(boundary: multipartBoundary)
-            }
-
-            if let parts = paramConfig.parts {
-                for var part in parts {
-                    part.boundary = multipartBoundary
-                    bodyData.append(part.formData)
-                }
-            }
-            
-            bodyData.append("--\(multipartBoundary)--\r\n".data(using: .utf8)!)
-            updatedRequest.httpBody = bodyData
+            updatedRequest.httpBody = Data.multipartFormData(with: paramConfig, and: multipartBoundary)
         case .custom:
             updatedRequest.httpBody = paramConfig.parameters as? Data
         }
@@ -258,30 +203,5 @@ private extension JoltNetwork {
             return nil
         }
         return url
-    }
-    
-    func isValidResponse(with requestConfigs: RequestConfigs,
-                         data: Data,
-                         request: URLRequest,
-                         response: URLResponse) -> Bool {
-        logger.log(response: response, and: data)
-        if let httpURLResponse = response as? HTTPURLResponse,
-           !(200...299 ~= httpURLResponse.statusCode) {
-            let error = createError(with: httpURLResponse.statusCode)
-            logger.logError(parameterType: requestConfigs.parameterType,
-                            parameters: requestConfigs.parameters,
-                            data: data,
-                            request: request,
-                            response: response,
-                            error: error)
-            return false
-        }
-        return true
-    }
-    
-    func createError(with statusCode: Int) -> NSError {
-        NSError(domain: "Jolt",
-                code: statusCode,
-                userInfo: [NSLocalizedDescriptionKey: HTTPURLResponse.localizedString(forStatusCode: statusCode)])
     }
 }
