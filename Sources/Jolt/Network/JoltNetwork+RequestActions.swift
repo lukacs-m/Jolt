@@ -56,7 +56,7 @@ extension JoltNetwork {
                                             parts: parts)
         return executeNonDecodableRequest(with: requestConfigs)
     }
-
+    
     // MARK: - Patch
     public func patch<ReturnType: Decodable>(_ path: String,
                                              parameterType: RequestParameterType = .json,
@@ -80,8 +80,8 @@ extension JoltNetwork {
     
     // MARK: - Put
     public func put<ReturnType: Decodable>(_ path: String,
-                                             parameterType: RequestParameterType = .json,
-                                             parameters: Any? = nil) -> AnyPublisher<ReturnType, Error> {
+                                           parameterType: RequestParameterType = .json,
+                                           parameters: Any? = nil) -> AnyPublisher<ReturnType, Error> {
         let requestConfigs = RequestConfigs(requestAction: .put,
                                             path: path,
                                             parameterType: parameterType,
@@ -90,18 +90,18 @@ extension JoltNetwork {
     }
     
     public func put<ReturnType>(_ path: String,
-                                  parameterType: RequestParameterType = .json,
-                                  parameters: Any? = nil) -> AnyPublisher<ReturnType, Error> {
+                                parameterType: RequestParameterType = .json,
+                                parameters: Any? = nil) -> AnyPublisher<ReturnType, Error> {
         let requestConfigs = RequestConfigs(requestAction: .put,
                                             path: path,
                                             parameterType: parameterType,
                                             parameters: parameters)
         return executeNonDecodableRequest(with: requestConfigs)
     }
- 
+    
     // MARK: - Delete
     public func delete<ReturnType: Decodable>(_ path: String,
-                                             parameters: Any? = nil) -> AnyPublisher<ReturnType, Error> {
+                                              parameters: Any? = nil) -> AnyPublisher<ReturnType, Error> {
         let parameterType: RequestParameterType = parameters != nil ? .formURLEncoded : .none
         let requestConfigs = RequestConfigs(requestAction: .delete,
                                             path: path,
@@ -109,9 +109,9 @@ extension JoltNetwork {
                                             parameters: parameters)
         return executeDecodableRequest(with: requestConfigs)
     }
-
+    
     public func delete<ReturnType>(_ path: String,
-                                  parameters: Any? = nil) -> AnyPublisher<ReturnType, Error> {
+                                   parameters: Any? = nil) -> AnyPublisher<ReturnType, Error> {
         let parameterType: RequestParameterType = parameters != nil ? .formURLEncoded : .none
         let requestConfigs = RequestConfigs(requestAction: .delete,
                                             path: path,

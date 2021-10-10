@@ -95,37 +95,33 @@ extension JoltNetwork: NetworkSessionAuthentificationConfiguring {
 extension JoltNetwork {
     
     func executeDecodableRequest<ReturnType: Decodable>(with requestConfigs: RequestConfigs) -> AnyPublisher<ReturnType, Error> {
-        let request: URLRequest
         do {
-            request = try createRequest(with: requestConfigs)
+            let request = try createRequest(with: requestConfigs)
+            return session.dataTaskPublisher(for: request)
+                .logURLResponse(with: logger)
+                .validateDataResponse()
+                .logError(with: logger, request: request, and: requestConfigs)
+                .decode()
+                .mapError { error -> JoltNetworkErrors in
+                    return JoltNetworkErrors.decodeError(error.localizedDescription)
+                }
+                .eraseToAnyPublisher()
         } catch let error {
             return .isFailing(with: error)
         }
-        
-        return session.dataTaskPublisher(for: request)
-            .logURLResponse(with: logger)
-            .validateDataResponse()
-            .logError(with: logger, request: request, and: requestConfigs)
-            .decode()
-            .mapError { error -> JoltNetworkErrors in
-                return JoltNetworkErrors.decodeError(error.localizedDescription)
-            }
-            .eraseToAnyPublisher()
     }
     
     func executeNonDecodableRequest<ReturnType>(with requestConfigs: RequestConfigs) -> AnyPublisher<ReturnType, Error> {
-        let request: URLRequest
         do {
-            request = try createRequest(with: requestConfigs)
+            let request = try createRequest(with: requestConfigs)
+            return session.dataTaskPublisher(for: request)
+                .logURLResponse(with: logger)
+                .validateGenericResponse()
+                .logError(with: logger, request: request, and: requestConfigs)
+                .eraseToAnyPublisher()
         } catch let error {
             return .isFailing(with: error)
         }
-        
-        return session.dataTaskPublisher(for: request)
-            .logURLResponse(with: logger)
-            .validateGenericResponse()
-            .logError(with: logger, request: request, and: requestConfigs)
-            .eraseToAnyPublisher()
     }
 }
 
@@ -153,26 +149,17 @@ private extension JoltNetwork {
     
     func addParams(to request: URLRequest,
                    with paramConfig: RequestConfigs) throws -> URLRequest {
-        guard let  parameterType = paramConfig.parameterType else {
+        guard let parameterType = paramConfig.parameterType else {
             return request
         }
         var updatedRequest = request
-        switch parameterType {
-        case .none: break
-        case .json:
-            if let parameters = paramConfig.parameters {
-                do {
-                    updatedRequest.httpBody = try JSONSerialization.data(withJSONObject: parameters, options: [])
-                } catch {
-                    throw JoltNetworkErrors.jsonParamSerialisation
-                }
-            }
-        case .formURLEncoded:
-            guard let parametersDictionary = paramConfig.parameters as? [String: Any] else {
-                throw JoltNetworkErrors.nonValidParamDictionary
-            }
-            do {
-                let formattedParameters = try parametersDictionary.urlEncodedString()
+        do {
+            switch parameterType {
+            case .none: break
+            case .json:
+                updatedRequest.httpBody = try paramConfig.jsonSerializedParams()
+            case .formURLEncoded:
+                let formattedParameters = try paramConfig.formURLEncodedSerializedParams()
                 switch paramConfig.requestAction {
                 case .get, .delete:
                     let urlEncodedPath = paramConfig.path.urlEncoded(with: formattedParameters)
@@ -180,13 +167,13 @@ private extension JoltNetwork {
                 case .post, .put, .patch:
                     updatedRequest.httpBody = formattedParameters.data(using: .utf8)
                 }
-            } catch let error {
-                throw error
+            case .multipartFormData:
+                updatedRequest.httpBody = Data.multipartFormData(with: paramConfig, and: multipartBoundary)
+            case .custom:
+                updatedRequest.httpBody = paramConfig.parameters as? Data
             }
-        case .multipartFormData:
-            updatedRequest.httpBody = Data.multipartFormData(with: paramConfig, and: multipartBoundary)
-        case .custom:
-            updatedRequest.httpBody = paramConfig.parameters as? Data
+        } catch let error {
+            throw error
         }
         
         return updatedRequest
