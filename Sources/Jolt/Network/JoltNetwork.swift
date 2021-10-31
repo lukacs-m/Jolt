@@ -1,5 +1,5 @@
 //
-//  File.swift
+//  JoltNetwork.swift
 //  
 //
 //  Created by Martin Lukacs on 14/09/2021.
@@ -42,6 +42,14 @@ extension JoltNetwork: LogConfiguring {
      */
     public func setLogLevel(with logLevel: LogLevel) {
         logger.setLoggingLevel(with: logLevel)
+    }
+}
+
+// MARK: - Session Settings
+
+extension JoltNetwork: JoltNetworkSettings {
+    public func setSessionRequestTimout(with timeout: TimeInterval) {
+        self.timeout = timeout
     }
 }
 
@@ -139,6 +147,11 @@ private extension JoltNetwork {
                                  boundary: multipartBoundary,
                                  authHeader: authHeader,
                                  headerFields: sessionHeader)
+        
+        if let timeout = timeout {
+            request.timeoutInterval = timeout
+        }
+        
         do {
             request = try addParams(to: request, with: requestConfigs)
         } catch let error {

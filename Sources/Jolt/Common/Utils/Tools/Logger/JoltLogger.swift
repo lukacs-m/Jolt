@@ -90,16 +90,6 @@ public final class JoltNetworkLogger: JoltLogging {
                 default: break
                 }
             }
-            
-            //            if let data = output?.data, let stringData = String(data: data, encoding: .utf8) {
-            //                errorInfos += "\r\nData: \(stringData)"
-            //            }
-            //
-            //            if let response = output?.response as? HTTPURLResponse {
-            //                errorInfos += "\r\n*** Response ***"
-            //                + "\r\nHeaders: \(response.allHeaderFields)"
-            //                + "\r\nStatus code: \(response.statusCode) — \(HTTPURLResponse.localizedString(forStatusCode: response.statusCode))"
-            //            }
         }
         errorInfos += "\r\n================= ~ =================="
         Logger.joltNetworking.debug("\(errorInfos)")

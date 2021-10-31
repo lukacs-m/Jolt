@@ -1,5 +1,5 @@
 //
-//  File.swift
+//  NetworkSessionAuthentificationConfiguring.swift
 //  
 //
 //  Created by Martin Lukacs on 26/09/2021.

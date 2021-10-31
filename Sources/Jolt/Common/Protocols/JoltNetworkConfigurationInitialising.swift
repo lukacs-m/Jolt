@@ -1,5 +1,5 @@
 //
-//  File.swift
+//  JoltNetworkConfigurationInitialising.swift
 //  
 //
 //  Created by Martin Lukacs on 14/09/2021.

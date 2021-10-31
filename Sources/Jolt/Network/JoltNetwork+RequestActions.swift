@@ -1,5 +1,5 @@
 //
-//  File.swift
+//  JoltNetwork.swift
 //  
 //
 //  Created by Martin Lukacs on 01/10/2021.
