@@ -1,19 +1,12 @@
-name: Swift
+name: swift
 
-on:
-  push:
-    branches: [ master ]
-  pull_request:
-    branches: [ master ]
+on: [push]
 
 jobs:
   build:
-
-    runs-on: macos-latest
-
+    runs-on: macOS-latest
     steps:
-    - uses: actions/checkout@v2
-    - name: Build
-      run: swift build -v
-    - name: Run tests
-      run: swift test -v
+      - name: Test
+        uses: actions/checkout@v2
+      - name: Build and Test
+        run:  xcodebuild test -scheme Jolt -destination 'platform=iOS Simulator,OS=latest,name=iPhone 12' -enableCodeCoverage YES build test
